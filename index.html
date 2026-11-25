@@ -1,1 +1,116 @@
 
+<!DOCTYPE html>
+<html lang="ur" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WoodPro Manager</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f1f5f9;color:#172033}
+header{background:#173b35;color:white;padding:22px;text-align:center}
+header h1{margin:0;font-size:25px}
+header p{margin:8px 0 0}
+.container{padding:15px;max-width:700px;margin:auto}
+.card{background:white;padding:17px;border-radius:13px;margin:14px 0;box-shadow:0 2px 9px #0001}
+h2{font-size:19px;color:#17483e}
+label{display:block;margin-top:12px;font-weight:bold}
+input,select,textarea{width:100%;padding:12px;margin-top:6px;border:1px solid #ccd5d2;border-radius:8px;font-size:16px}
+button{background:#176b51;color:white;border:0;border-radius:8px;padding:12px 17px;font-size:16px;margin-top:14px;cursor:pointer}
+.secondary{background:#334155}
+.job{border:1px solid #ddd;padding:12px;border-radius:9px;margin-top:10px}
+nav{display:flex;gap:8px;flex-wrap:wrap}
+nav button{flex:1}
+small{color:#64748b}
+</style>
+</head>
+<body>
+<header>
+<h1>🪵 WoodPro Manager</h1>
+<p>Wood Work & Interior Management</p>
+</header>
+<div class="container">
+<div class="card">
+<h2>کاروبار کا خلاصہ</h2>
+<p>کل کام: <b id="total">0</b></p>
+<p>کل وصولی: <b id="received">Rs 0</b></p>
+<p>باقی رقم: <b id="balance">Rs 0</b></p>
+</div>
+<div class="card">
+<h2>نیا کسٹمر / نیا کام</h2>
+<form id="jobForm">
+<label>کسٹمر کا نام</label>
+<input id="name" required placeholder="کسٹمر کا نام">
+<label>موبائل / واٹس ایپ نمبر</label>
+<input id="phone" placeholder="03XXXXXXXXX">
+<label>کام کی قسم</label>
+<select id="type">
+<option>کچن</option>
+<option>الماری</option>
+<option>LED الماری</option>
+<option>دروازے</option>
+<option>فرنیچر</option>
+<option>پردے</option>
+<option>وال پیپر</option>
+<option>سیلنگ / پینل</option>
+<option>بیڈنگ</option>
+<option>دیگر کام</option>
+</select>
+<label>کام کی تفصیل</label>
+<textarea id="details" placeholder="کام کی مکمل تفصیل"></textarea>
+<label>کام شروع ہونے کی تاریخ</label>
+<input id="start" type="date">
+<label>مکمل ہونے کی تاریخ</label>
+<input id="finish" type="date">
+<label>کل طے شدہ رقم</label>
+<input id="amount" type="number" min="0" required placeholder="مثلاً 50000">
+<label>وصول شدہ رقم</label>
+<input id="paid" type="number" min="0" value="0">
+<button type="submit">کام محفوظ کریں</button>
+</form>
+</div>
+<div class="card">
+<h2>کسٹمر ریکارڈ</h2>
+<div id="records">ابھی کوئی ریکارڈ موجود نہیں۔</div>
+</div>
+</div>
+<script>
+let jobs=JSON.parse(localStorage.getItem("woodpro_jobs")||"[]");
+function save(){localStorage.setItem("woodpro_jobs",JSON.stringify(jobs));render();}
+function render(){
+document.getElementById("total").textContent=jobs.length;
+document.getElementById("received").textContent="Rs "+jobs.reduce((s,j)=>s+j.paid,0).toLocaleString();
+document.getElementById("balance").textContent="Rs "+jobs.reduce((s,j)=>s+j.amount-j.paid,0).toLocaleString();
+let box=document.getElementById("records");
+box.innerHTML="";
+if(!jobs.length){box.textContent="ابھی کوئی ریکارڈ موجود نہیں۔";return;}
+jobs.forEach((j,i)=>{
+let div=document.createElement("div");div.className="job";
+let title=document.createElement("b");title.textContent=j.name+" — "+j.type;div.appendChild(title);
+let info=document.createElement("p");info.textContent="فون: "+j.phone+" | کل رقم: Rs "+j.amount+" | وصول: Rs "+j.paid+" | بقایا: Rs "+(j.amount-j.paid);div.appendChild(info);
+let dates=document.createElement("small");dates.textContent="شروع: "+j.start+" | مکمل: "+j.finish;div.appendChild(dates);
+let detail=document.createElement("p");detail.textContent=j.details;div.appendChild(detail);
+let del=document.createElement("button");del.textContent="ریکارڈ حذف کریں";del.className="secondary";del.onclick=()=>{if(confirm("کیا یہ ریکارڈ حذف کرنا ہے؟")){jobs.splice(i,1);save();}};div.appendChild(del);
+box.appendChild(div);
+});
+}
+document.getElementById("jobForm").addEventListener("submit",e=>{
+e.preventDefault();
+let amount=Number(document.getElementById("amount").value);
+let paid=Number(document.getElementById("paid").value);
+if(paid>amount){alert("وصول شدہ رقم کل رقم سے زیادہ نہیں ہو سکتی");return;}
+jobs.push({
+name:document.getElementById("name").value,
+phone:document.getElementById("phone").value,
+type:document.getElementById("type").value,
+details:document.getElementById("details").value,
+start:document.getElementById("start").value,
+finish:document.getElementById("finish").value,
+amount,paid
+});
+save();e.target.reset();
+});
+render();
+</script>
+</body>
+</html>
