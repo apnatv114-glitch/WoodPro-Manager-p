@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ur" dir="rtl">
 <head>
@@ -17,32 +16,41 @@ h2{font-size:19px;color:#17483e}
 label{display:block;margin-top:12px;font-weight:bold}
 input,select,textarea{width:100%;padding:12px;margin-top:6px;border:1px solid #ccd5d2;border-radius:8px;font-size:16px}
 button{background:#176b51;color:white;border:0;border-radius:8px;padding:12px 17px;font-size:16px;margin-top:14px;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
 .secondary{background:#334155}
 .job{border:1px solid #ddd;padding:12px;border-radius:9px;margin-top:10px}
-nav{display:flex;gap:8px;flex-wrap:wrap}
-nav button{flex:1}
 small{color:#64748b}
+.status{padding:10px;border-radius:8px;background:#e2e8f0;margin-top:10px}
 </style>
 </head>
 <body>
+
 <header>
 <h1>🪵 WoodPro Manager</h1>
 <p>Wood Work & Interior Management</p>
 </header>
+
 <div class="container">
+
 <div class="card">
 <h2>کاروبار کا خلاصہ</h2>
 <p>کل کام: <b id="total">0</b></p>
 <p>کل وصولی: <b id="received">Rs 0</b></p>
 <p>باقی رقم: <b id="balance">Rs 0</b></p>
+<div class="status" id="status">Firebase سے رابطہ ہو رہا ہے...</div>
 </div>
+
 <div class="card">
 <h2>نیا کسٹمر / نیا کام</h2>
+
 <form id="jobForm">
+
 <label>کسٹمر کا نام</label>
 <input id="name" required placeholder="کسٹمر کا نام">
+
 <label>موبائل / واٹس ایپ نمبر</label>
 <input id="phone" placeholder="03XXXXXXXXX">
+
 <label>کام کی قسم</label>
 <select id="type">
 <option>کچن</option>
@@ -56,61 +64,303 @@ small{color:#64748b}
 <option>بیڈنگ</option>
 <option>دیگر کام</option>
 </select>
+
 <label>کام کی تفصیل</label>
 <textarea id="details" placeholder="کام کی مکمل تفصیل"></textarea>
+
 <label>کام شروع ہونے کی تاریخ</label>
 <input id="start" type="date">
+
 <label>مکمل ہونے کی تاریخ</label>
 <input id="finish" type="date">
+
 <label>کل طے شدہ رقم</label>
 <input id="amount" type="number" min="0" required placeholder="مثلاً 50000">
+
 <label>وصول شدہ رقم</label>
 <input id="paid" type="number" min="0" value="0">
-<button type="submit">کام محفوظ کریں</button>
+
+<button type="submit" id="saveBtn" disabled>کام محفوظ کریں</button>
+
 </form>
 </div>
+
 <div class="card">
 <h2>کسٹمر ریکارڈ</h2>
-<div id="records">ابھی کوئی ریکارڈ موجود نہیں۔</div>
+<div id="records">ریکارڈ لوڈ ہو رہا ہے...</div>
 </div>
+
 </div>
-<script>
-let jobs=JSON.parse(localStorage.getItem("woodpro_jobs")||"[]");
-function save(){localStorage.setItem("woodpro_jobs",JSON.stringify(jobs));render();}
-function render(){
-document.getElementById("total").textContent=jobs.length;
-document.getElementById("received").textContent="Rs "+jobs.reduce((s,j)=>s+j.paid,0).toLocaleString();
-document.getElementById("balance").textContent="Rs "+jobs.reduce((s,j)=>s+j.amount-j.paid,0).toLocaleString();
-let box=document.getElementById("records");
-box.innerHTML="";
-if(!jobs.length){box.textContent="ابھی کوئی ریکارڈ موجود نہیں۔";return;}
-jobs.forEach((j,i)=>{
-let div=document.createElement("div");div.className="job";
-let title=document.createElement("b");title.textContent=j.name+" — "+j.type;div.appendChild(title);
-let info=document.createElement("p");info.textContent="فون: "+j.phone+" | کل رقم: Rs "+j.amount+" | وصول: Rs "+j.paid+" | بقایا: Rs "+(j.amount-j.paid);div.appendChild(info);
-let dates=document.createElement("small");dates.textContent="شروع: "+j.start+" | مکمل: "+j.finish;div.appendChild(dates);
-let detail=document.createElement("p");detail.textContent=j.details;div.appendChild(detail);
-let del=document.createElement("button");del.textContent="ریکارڈ حذف کریں";del.className="secondary";del.onclick=()=>{if(confirm("کیا یہ ریکارڈ حذف کرنا ہے؟")){jobs.splice(i,1);save();}};div.appendChild(del);
-box.appendChild(div);
-});
+
+<script type="module">
+
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+
+import {
+getAuth,
+signInAnonymously,
+onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+import {
+getFirestore,
+collection,
+addDoc,
+deleteDoc,
+doc,
+onSnapshot,
+serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+// Firebase Configuration
+
+const firebaseConfig = {
+apiKey: "AIzaSyAoDgw7AmUt8YUg8pYov0fp8UrdcK1vXtE",
+authDomain: "woodpro-manager-p.firebaseapp.com",
+projectId: "woodpro-manager-p",
+storageBucket: "woodpro-manager-p.firebasestorage.app",
+messagingSenderId: "382936613264",
+appId: "1:382936613264:web:04da89763fc1e8a0877315",
+measurementId: "G-LQ5W7B1VYX"
+};
+
+// Initialize Firebase
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let currentUser = null;
+let jobs = [];
+let unsubscribe = null;
+
+const status = document.getElementById("status");
+const saveBtn = document.getElementById("saveBtn");
+
+function showStatus(message) {
+status.textContent = message;
 }
-document.getElementById("jobForm").addEventListener("submit",e=>{
-e.preventDefault();
-let amount=Number(document.getElementById("amount").value);
-let paid=Number(document.getElementById("paid").value);
-if(paid>amount){alert("وصول شدہ رقم کل رقم سے زیادہ نہیں ہو سکتی");return;}
-jobs.push({
-name:document.getElementById("name").value,
-phone:document.getElementById("phone").value,
-type:document.getElementById("type").value,
-details:document.getElementById("details").value,
-start:document.getElementById("start").value,
-finish:document.getElementById("finish").value,
-amount,paid
-});
-save();e.target.reset();
-});
+
+// Authentication
+
+onAuthStateChanged(auth, async (user) => {
+
+if (user) {
+
+currentUser = user;
+
+showStatus("Firebase سے رابطہ کامیاب ہوگیا۔");
+
+saveBtn.disabled = false;
+
+if (unsubscribe) unsubscribe();
+
+const jobsRef = collection(
+db,
+"users",
+currentUser.uid,
+"jobs"
+);
+
+unsubscribe = onSnapshot(jobsRef, (snapshot) => {
+
+jobs = snapshot.docs.map(item => ({
+id: item.id,
+...item.data()
+}));
+
 render();
+
+}, (error) => {
+
+console.error(error);
+showStatus("ریکارڈ لوڈ کرنے میں مسئلہ: " + error.message);
+
+});
+
+} else {
+
+try {
+await signInAnonymously(auth);
+} catch (error) {
+console.error(error);
+showStatus("Login میں مسئلہ: " + error.message);
+}
+
+}
+
+});
+
+// Save job
+
+document.getElementById("jobForm").addEventListener("submit", async (e) => {
+
+e.preventDefault();
+
+if (!currentUser) {
+alert("Firebase Login مکمل ہونے کا انتظار کریں۔");
+return;
+}
+
+const amount = Number(document.getElementById("amount").value);
+const paid = Number(document.getElementById("paid").value);
+
+if (paid > amount) {
+alert("وصول شدہ رقم کل رقم سے زیادہ نہیں ہو سکتی۔");
+return;
+}
+
+if (amount < 0 || paid < 0) {
+alert("رقم منفی نہیں ہو سکتی۔");
+return;
+}
+
+const job = {
+
+name: document.getElementById("name").value.trim(),
+
+phone: document.getElementById("phone").value.trim(),
+
+type: document.getElementById("type").value,
+
+details: document.getElementById("details").value.trim(),
+
+start: document.getElementById("start").value,
+
+finish: document.getElementById("finish").value,
+
+amount: amount,
+
+paid: paid,
+
+createdAt: serverTimestamp()
+
+};
+
+try {
+
+saveBtn.disabled = true;
+
+await addDoc(
+collection(db, "users", currentUser.uid, "jobs"),
+job
+);
+
+e.target.reset();
+
+document.getElementById("paid").value = 0;
+
+showStatus("کسٹمر کا ریکارڈ کامیابی سے محفوظ ہوگیا۔");
+
+} catch (error) {
+
+console.error(error);
+alert("ریکارڈ محفوظ نہیں ہوا: " + error.message);
+
+} finally {
+
+saveBtn.disabled = false;
+
+}
+
+});
+
+// Display records
+
+function render() {
+
+document.getElementById("total").textContent = jobs.length;
+
+const received = jobs.reduce(
+(sum, job) => sum + Number(job.paid || 0), 0
+);
+
+const balance = jobs.reduce(
+(sum, job) => sum + Number(job.amount || 0) - Number(job.paid || 0), 0
+);
+
+document.getElementById("received").textContent =
+"Rs " + received.toLocaleString();
+
+document.getElementById("balance").textContent =
+"Rs " + balance.toLocaleString();
+
+const box = document.getElementById("records");
+
+box.innerHTML = "";
+
+if (jobs.length === 0) {
+box.textContent = "ابھی کوئی ریکارڈ موجود نہیں۔";
+return;
+}
+
+jobs.forEach((job) => {
+
+const div = document.createElement("div");
+div.className = "job";
+
+const title = document.createElement("b");
+title.textContent = job.name + " — " + job.type;
+div.appendChild(title);
+
+const info = document.createElement("p");
+
+info.textContent =
+"فون: " + (job.phone || "-") +
+" | کل رقم: Rs " + Number(job.amount || 0).toLocaleString() +
+" | وصول: Rs " + Number(job.paid || 0).toLocaleString() +
+" | بقایا: Rs " +
+(Number(job.amount || 0) - Number(job.paid || 0)).toLocaleString();
+
+div.appendChild(info);
+
+const dates = document.createElement("small");
+
+dates.textContent =
+"شروع: " + (job.start || "-") +
+" | مکمل: " + (job.finish || "-");
+
+div.appendChild(dates);
+
+const detail = document.createElement("p");
+detail.textContent = job.details || "";
+div.appendChild(detail);
+
+const del = document.createElement("button");
+
+del.textContent = "ریکارڈ حذف کریں";
+del.className = "secondary";
+
+del.onclick = async () => {
+
+if (!confirm("کیا یہ ریکارڈ حذف کرنا ہے؟")) return;
+
+try {
+
+await deleteDoc(
+doc(db, "users", currentUser.uid, "jobs", job.id)
+);
+
+showStatus("ریکارڈ حذف ہوگیا۔");
+
+} catch (error) {
+
+console.error(error);
+alert("ریکارڈ حذف نہیں ہوا: " + error.message);
+
+}
+
+};
+
+div.appendChild(del);
+box.appendChild(div);
+
+});
+
+}
+
 </script>
+
 </body>
 </html>
