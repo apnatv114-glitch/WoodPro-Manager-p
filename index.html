@@ -3,7 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#173b35">
+<meta name="description" content="WoodPro Manager - Wood Work and Interior Customer and Job Management">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="WoodPro Manager">
+
 <title>WoodPro Manager</title>
+
+<link rel="manifest" href="./manifest.json">
+
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial,sans-serif;background:#f1f5f9;color:#172033}
@@ -23,6 +32,7 @@ small{color:#64748b}
 .status{padding:10px;border-radius:8px;background:#e2e8f0;margin-top:10px}
 </style>
 </head>
+
 <body>
 
 <header>
@@ -142,7 +152,7 @@ function showStatus(message) {
 status.textContent = message;
 }
 
-// Authentication
+// Anonymous Authentication
 
 onAuthStateChanged(auth, async (user) => {
 
@@ -151,7 +161,6 @@ if (user) {
 currentUser = user;
 
 showStatus("Firebase سے رابطہ کامیاب ہوگیا۔");
-
 saveBtn.disabled = false;
 
 if (unsubscribe) unsubscribe();
@@ -192,7 +201,7 @@ showStatus("Login میں مسئلہ: " + error.message);
 
 });
 
-// Save job
+// Save Job
 
 document.getElementById("jobForm").addEventListener("submit", async (e) => {
 
@@ -266,7 +275,7 @@ saveBtn.disabled = false;
 
 });
 
-// Display records
+// Display Records
 
 function render() {
 
@@ -360,6 +369,30 @@ box.appendChild(div);
 
 }
 
+</script>
+
+<script>
+// Register Service Worker
+
+if ("serviceWorker" in navigator) {
+
+window.addEventListener("load", async () => {
+
+try {
+
+await navigator.serviceWorker.register("./service-worker.js");
+
+console.log("WoodPro Service Worker Registered");
+
+} catch (error) {
+
+console.error("Service Worker Error:", error);
+
+}
+
+});
+
+}
 </script>
 
 </body>
